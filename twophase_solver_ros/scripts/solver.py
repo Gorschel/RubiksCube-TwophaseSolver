@@ -107,7 +107,7 @@ class SolverThread(thr.Thread):
         ################################################################################################################
         if togo_phase1 == 0:  # phase 1 solved
 
-            if time.monotonic() > self.start_time + self.timeout and len(self.solutions) > 0:
+            if time.clock() > self.start_time + self.timeout and len(self.solutions) > 0: #was time.monotonic() before
                 self.terminated.set()
 
             # compute initial phase 2 coordinates
@@ -215,7 +215,7 @@ def solve(cubestring, max_length=20, timeout=3):
         return s  # Error in cubie cube
 
     my_threads = []
-    s_time = time.monotonic()
+    s_time = time.clock() #was time.monotonic() before
 
     # these mutable variables are modidified by all six threads
     s_length = [999]

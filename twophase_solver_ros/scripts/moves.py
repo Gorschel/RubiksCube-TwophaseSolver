@@ -69,7 +69,7 @@ if not path.isfile(fname):
     slice_sorted_move = ar.array('H', [0 for i in range(N_SLICE_SORTED * N_MOVE)])
     for i in range(N_SLICE_SORTED):
         if i % 200 == 0:
-            print('.', end='', flush=True)
+            print '.',
         a.set_slice_sorted(i)
         for j in enums.Color:
             for k in range(3):
@@ -98,7 +98,7 @@ if not path.isfile(fname):
     u_edges_move = ar.array('H', [0 for i in range(N_SLICE_SORTED * N_MOVE)])
     for i in range(N_SLICE_SORTED):
         if i % 200 == 0:
-            print('.', end='', flush=True)
+            print '.',
         a.set_u_edges(i)
         for j in enums.Color:
             for k in range(3):
@@ -127,7 +127,7 @@ if not path.isfile(fname):
     d_edges_move = ar.array('H', [0 for i in range(N_SLICE_SORTED * N_MOVE)])
     for i in range(N_SLICE_SORTED):
         if i % 200 == 0:
-            print('.', end='', flush=True)
+            print '.',
         a.set_d_edges(i)
         for j in enums.Color:
             for k in range(3):
@@ -155,7 +155,7 @@ if not path.isfile(fname):
     ud_edges_move = ar.array('H', [0 for i in range(N_UD_EDGES * N_MOVE)])
     for i in range(N_UD_EDGES):
         if (i+1) % 600 == 0:
-            print('.', end='', flush=True)
+            print('.',)
         if (i+1) % 48000 == 0:
             print('')
         a.set_ud_edges(i)
@@ -188,7 +188,7 @@ if not path.isfile(fname):
     corners_move = ar.array('H', [0 for i in range(N_CORNERS * N_MOVE)])
     for i in range(N_CORNERS):
         if (i+1) % 200 == 0:
-            print('.', end='', flush=True)
+            print '.',
         if(i+1) % 16000 == 0:
             print('')
         a.set_corners(i)

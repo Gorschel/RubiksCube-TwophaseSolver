@@ -183,7 +183,7 @@ def create_phase2_edgemerge_table():
                         u_edges_plus_d_edges_to_ud_edges[N_PERM_4 * i + k] = c_ud.get_ud_edges()
                         cnt += 1
                         if cnt % 2000 == 0:
-                            print('.', end='', flush=True)
+                            print '.',
         print()
         fh = open(fname, "wb")
         u_edges_plus_d_edges_to_ud_edges.tofile(fh)

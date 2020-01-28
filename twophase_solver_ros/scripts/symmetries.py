@@ -131,7 +131,7 @@ if not path.isfile(fname):
     ud_edges_conj = ar.array('H', [0] * (N_UD_EDGES * N_SYM_D4h))
     for t in range(N_UD_EDGES):
         if (t + 1) % 400 == 0:
-            print('.', end='', flush=True)
+            print('.',)
         if (t + 1) % 32000 == 0:
             print('')
         cc = cb.CubieCube()
@@ -170,7 +170,7 @@ if not (path.isfile(fname1) and path.isfile(fname2) and path.isfile(fname3)):
             cc.set_flip(flip)
             idx = N_FLIP * slc + flip
             if (idx + 1) % 4000 == 0:
-                print('.', end='', flush=True)
+                print '.',
             if (idx + 1) % 320000 == 0:
                 print('')
 
@@ -233,7 +233,7 @@ if not (path.isfile(fname1) and path.isfile(fname2) and path.isfile(fname3)):
     for cp in range(N_CORNERS):
         cc.set_corners(cp)
         if (cp + 1) % 8000 == 0:
-            print('.', end='', flush=True)
+            print '.',
 
         if corner_classidx[cp] == INVALID:
             corner_classidx[cp] = classidx

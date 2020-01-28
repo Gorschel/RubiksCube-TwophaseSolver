@@ -63,7 +63,7 @@ def create_phase1_prun_table():
         fs_sym = ar.array('H', [0] * defs.N_FLIPSLICE_CLASS)
         for i in range(defs.N_FLIPSLICE_CLASS):
             if (i + 1) % 1000 == 0:
-                print('.', end='', flush=True)
+                print '.',
             rep = sy.flipslice_rep[i]
             cc.set_slice(rep // defs.N_FLIP)
             cc.set_flip(rep % defs.N_FLIP)
@@ -98,7 +98,7 @@ def create_phase1_prun_table():
             idx = 0
             for fs_classidx in range(defs.N_FLIPSLICE_CLASS):
                 if (fs_classidx + 1) % (200 * mult) == 0:
-                    print('.', end='', flush=True)
+                    print '.',
                 if (fs_classidx + 1) % (16000 * mult) == 0:
                     print('')
 
@@ -185,7 +185,7 @@ def create_phase2_prun_table():
         c_sym = ar.array('H', [0] * defs.N_CORNERS_CLASS)
         for i in range(defs.N_CORNERS_CLASS):
             if (i + 1) % 1000 == 0:
-                print('.', end='', flush=True)
+                print '.',
             rep = sy.corner_rep[i]
             cc.set_corners(rep)
             for s in range(defs.N_SYM_D4h):
@@ -212,7 +212,7 @@ def create_phase2_prun_table():
                 mult = 1
             for c_classidx in range(defs.N_CORNERS_CLASS):
                 if (c_classidx + 1) % (20 * mult) == 0:
-                    print('.', end='', flush=True)
+                    print '.',
                 if (c_classidx + 1) % (1600 * mult) == 0:
                     print('')
 
@@ -301,7 +301,7 @@ def create_phase2_cornsliceprun_table():
                                 cornslice_depth[idx1] = depth + 1
                                 done += 1
                                 if done % 20000 == 0:
-                                    print('.', end='', flush=True)
+                                    print '.',
 
             depth += 1
         print()

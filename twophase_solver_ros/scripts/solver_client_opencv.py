@@ -17,16 +17,12 @@ def cube_solver_client(cube):
         print "Service call failed: %s"%e
 
 if __name__ == "__main__":
-    # bv -> cube
     retval, cube = scan_cube() # vlt return val nötig um roboter selbst die seiten wenden zu lassen
-    print cube
-    cube = 'DLRRUUDFDBBBDRBLLBRRLFFBRFDFUFDDULULFDBBLDFLUUFRLBRURU' # debug override
-
-    # find solution for cube
-    resp = cube_solver_client(cube)
+    print "\nscanned cube: %s" %cube    # 'DLRRUUDFDBBBDRBLLBRRLFFBRFDFUFDDULULFDBBLDFLUUFRLBRURU' # example CubeDefString 
+    resp = cube_solver_client(cube)     # find solution for cube
     if resp.movecount == 0:
         print "\n%s" %(resp.solution)
         pass
     else:
-        print "\nsolution is: %s (%s moves)" %(resp.solution, resp.movecount)
+        print "received solution: %s (%s moves)\n" %(resp.solution, resp.movecount)
         pass

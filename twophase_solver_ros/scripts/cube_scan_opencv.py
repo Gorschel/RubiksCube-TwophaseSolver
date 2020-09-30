@@ -4,50 +4,43 @@
 import rospy
 import numpy as np
 import cv2
-
+import rospkg
 from enums import Color # U=0 R=1 F=2 D=3 L=4 B=5
 from matplotlib import pyplot as plt # histograms
+import rospkg
+
 
 ### config
 
-modus = 1   # vlt über menü auswahl steuern
-path = "/home/georg/catkin_ws/src/twophase_solver_ros/images/"
-customname = 'example3_'
-
-# get img size
-if modus:
-    img = cv2.imread(path + customname + 'Color.U.png')
-else:
-    img = cv2.imread(path + 'example1_' + 'Color.U.png')
-#! vlt retval_0 abfangen
-height, width, channels = img.shape
-imgs = np.array( [np.zeros((height, width, channels), dtype = "uint8")] * 6 )
+modus = 1  # 0 = record # vlt über menü auswahl steuern
+rospack = rospkg.RosPack()
+fpath = rospack.get_path('twophase_solver_ros') + '/images/'
+customname = 'Anwendungsbeispiel'
 
 
-def save_images(imgs):
-    for i in Color:
-        filepath = path + customname + str(Color(i)) + '.png'
-        cv2.imwrite(filepath, imgs[i])
-        print "image saved: " + filepath
+def save_image(img, i):
+    filepath = fpath + customname + str(Color(i)) + '.png'
+    cv2.imwrite(filepath, img)
+    print "image saved: " + filepath
 
-def load_images():
-    for i in Color:
-        filepath = path + customname + str(Color(i)) + '.png'
-        imgs[i] = cv2.imread(filepath)
-        print "image loaded: " + filepath
-    return imgs
+def load_image(i):
+    filepath = fpath + customname + str(Color(i)) + '.png'
+    img = cv2.imread(filepath, cv2.IMREAD_COLOR)
+    print "image loaded: " + filepath
+    return img
 
-def generateDefParams():
+def generateDefParams(h,w):
     'create default parameter set'
     params = cv2.SimpleBlobDetector_Params()
+    maxArea = w*h
     # Change thresholds
     params.minThreshold = 0
     params.maxThreshold = 256
     params.thresholdStep = 37
     # Filter by Area.
     params.filterByArea = True
-    params.minArea = 1000
-    params.maxArea = 10000
+    params.minArea = maxArea/50
+    params.maxArea = maxArea/9
     # Filter by Convexity
     params.filterByConvexity = True
     params.minConvexity = 0.8
@@ -57,65 +50,80 @@ def generateDefParams():
     params.blobColor = 0 #0..255
     return params
 
-def detect_blobs(imgs, trys):
-    keypoints = np.array( [cv2.KeyPoint()] * 6 )
-    imgs_pts = np.array( [np.zeros((height, width, channels), dtype = "uint8")] * 6 )
-    cyc = False
+def detect_blobs(img):
+    h,w = img.shape
+    params = generateDefParams(h,w) # create default parameter set
+    detector = cv2.SimpleBlobDetector_create(params) # create detector
+    keypoints = detector.detect(img) # detect
+    img_pts = cv2.drawKeypoints(img, keypoints, np.array([]), (0,0,255)) #, cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS) #flags für entsprechende kreisgröße
+    if np.size(keypoints) == 9: # prüfen ob farbzahl stimmt (9 von jeder farbe) 
+    return keypoints, img_pts
 
-    for i in range(6):
-        params = generateDefParams() # create default parameter set
-        cyc = True
-        while cyc:
-            detector = cv2.SimpleBlobDetector_create(params) # create detector
-            keypoints[i] = detector.detect(imgs[i]) # detect
-            imgs_pts[i] = cv2.drawKeypoints(imgs[i], keypoints[i], np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS) #flags für entsprechende kreisgröße: , cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS
-            
-            #! prüfen ob farbzahl stimmt (9 von jeder farbe)
-            if np.size(keypoints[i]) == 9: # erfolg
-                cyc = False
-            elif np.size(keypoints[i]) < 9 and trys>0: # zu wenige
-                params.minArea -= 10
-                params.minConvexity -= 0.01
-                trys -= 1
-            elif np.size(keypoints[i]) > 9 and trys>0: # zu viele
-                params.minArea += 10
-                params.minConvexity += 0.01
-                trys -= 1
-            elif trys == 0:
-                break
-            # anzahl alleine reicht nicht aus
+def find_nearest(array, value):
+    """finds nearest array-value to a given scalar"""
+    array = np.asarray(array)
+    dif = np.abs(np.subtract(array, value))
+    dev = np.sqrt( np.power(dif[:,0], 2) + np.power(dif[:,1], 2) + np.power(dif[:,2], 2))   # abweichung zwischen centerfarben
+    idx = dev.argmin() # minimum
+    return idx, array[idx]
 
-    return keypoints, imgs_pts
+def sort_data(data):
+    """sort data_arr for rows, cols wrt corresponding coordinates"""
+    # x, y, L, a, b
+    #sort rows (y)
+    for r in range(9):
+        for n in range(9):
+            if data[r,1] < data[n,1] and not r == n:
+                save = np.copy(data[r])
+                data[r] = np.copy(data[n])
+                data[n] = np.copy(save)
+    # sort cols (x) (3 felder)
+    for b in range(3):
+        for r in range(3):
+            for n in range(3):
+                if data[r+b*3,0] < data[n+b*3,0] and not r == n:
+                    save = np.copy(data[r+b*3])
+                    data[r+b*3] = np.copy(data[n+b*3])
+                    data[n+b*3] = np.copy(save)
+    return data
+
+def get_chars(idx):
+    chars = {
+        0: "U",
+        1: "R",
+        2: "F",
+        3: "D",
+        4: "L",
+        5: "B",
+    }
+    return chars.get(idx,"_")
 
 def scan_cube():
     """get CubeDefStr from actual Rubics cube, using opencv"""
 
-
     ### init
-
     ret = 0
     win_name = "init"  # vlt named window für menü hier erstellen
-
+    data_arr = np.zeros(shape=(6,9,5), dtype = np.int16)
+    centers = np.zeros(shape=(6,3), dtype = 'int')
 
     ### vlt menü
-
     # plot text in blank image
     # actions like save imgs, start scan, etc
 
-
-    ### get cube face images
-
-    if modus == 0:      # bilder aufnehmen
-        cam = cv2.VideoCapture(2)
-        width = int(cam.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(cam.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        channels = 3
-        imgs = np.array( [np.zeros((height, width, channels), dtype = "uint8")] * 6 )
-
-        cv2.namedWindow(win_name)
-        for i in Color:
+    ### Cube-faces loop
+    for i in range(6):
+        ### get cube face images
+        if modus == 0:      # bilder aufnehmen
+            cam = cv2.VideoCapture(2)
+            #cam.set(cv2.CAP_PROP_EXPOSURE, 0.1)
+            #cam.set(cv2.CAP_PROP)
+            width = int(cam.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cam.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            channels = 3
+            cv2.namedWindow(win_name)
             # update window name
-            win_name_new = "cam preview for Face" + str(Color(i)) + ": [ESC:abort, SPACE:save]"
+            win_name_new = "cam preview for: " + str(Color(i)) + " . [ESC:abort, SPACE:save]"
             cv2.setWindowTitle(win_name, win_name_new)   
             # preview camera feed
             while True:
@@ -133,136 +141,104 @@ def scan_cube():
                     break
                 elif k%256 == 32:
                     # SPACE pressed
-                    imgs[i] = frame
+                    img = frame
                     retval = 2
+                    cv2.setWindowTitle(win_name, "[saved]" + str(Color(i)))
                     break
             if retval < 2: break    
             win_name = win_name_new
-        cv2.destroyAllWindows
-        cam.release()
-        save_images(imgs)
-    elif modus == 1:    # bilder laden
-        imgs = load_images()
-        # cv2.imshow('test', imgs[0]) # vorschau if erfolg
+            cv2.destroyAllWindows
+            cam.release()
+            save_image(img, i)
+        elif modus == 1:    # bilder laden
+            img = load_image(i)
 
+        ##Save/Plot cfg
+        var = -1
+        plot = False
 
-    ### preprocessing
-
-    height, width, channels = imgs[0].shape
-
-    ## farbraum trafo / split
+        ## farbraum trafo / split
+        img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV_FULL)
+        img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)
+        #img_lab = img
+        if i == var:
+            cv2.imwrite(path + "awbsp/img" + ".png", img)
+            cv2.imwrite(path + "awbsp/hsv" + ".png", img_hsv)
+            cv2.imwrite(path + "awbsp/lab" + ".png", img_lab)
     
-    imgs_hsv = np.zeros((6, height, width, 3), dtype = "uint8")
-    imgs_hue = imgs_sat = imgs_val = imgs_gray = np.zeros((6, height, width), dtype = "uint8")
-    for i in range(6):
-        imgs_hsv[i] = cv2.cvtColor(imgs[i], cv2.COLOR_BGR2HSV_FULL)
-        #imgs_gray[i] = cv2.cvtColor(imgs[i], cv2.COLOR_BGR2GRAY)
-        #imgs_hue[i], imgs_sat[i], imgs_val[i] = cv2.split(imgs_hsv[i])  #! split-bug: hue kanal wird überschrieben
-
-    cv2.imshow("hue_"+str(0), imgs_hsv[0,:,:,0])
-    cv2.imshow("val_"+str(0), imgs_hsv[0,:,:,1])
-    cv2.imshow("sat_"+str(0), imgs_hsv[0,:,:,2])
-    
-    ## entrauschen (median, morph closing, etc)                                                             (kann weg)
-
-    #kernel = np.ones((5,5),np.uint8)
-    #imgs_filter_hue = imgs_filter_gray = np.array( [np.zeros((height, width), dtype = "uint8")] * 6 )
-    #for i in range (6):
-        #imgs_filter_hue[i] = cv2.medianBlur(imgs_hue[i], 7)
-        #imgs_filter_gray[i] = cv2.medianBlur(imgs_hue[i], 5)
-        #imgs_filter[i] = cv2.morphologyEx(imgs_filter[i], cv2.MORPH_OPEN, kernel)
-    # debug override
-    #imgs_filter = imgs_hue
-
-
-    ### processing
-
-    ## vlt bounding box für würfel (roi); stickerflächen finden
-
-    imgs_bin = np.zeros((6, height, width), dtype = "uint8")
-    keypoints = np.array( [cv2.KeyPoint()] * 6 )
-    
-    #- binary image "schwarzes Würfelgitter"
-    for i in range(6):
-
+        ## binary image "schwarzes Würfelgitter"
         # adaptive threshhold 
-        imgs_bin[i] = cv2.adaptiveThreshold(imgs_hsv[i,:,:,2], 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 81, 5) 
+        if plot: cv2.imshow("L"+str(i), img_lab[:,:,0])
+        img_bin = cv2.adaptiveThreshold(img_lab[:,:,0], 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 81, 5) # nach value binarisieren
+        if plot: cv2.imshow("adaptive"+str(i), img_bin)
+        if i == var: cv2.imwrite(path + "awbsp/adaptivethresh" + ".png", img_bin)
+        # morphologische filter; iterations > 1 not working
+        img_bin = cv2.morphologyEx(img_bin, cv2.MORPH_CLOSE, np.ones((3,3), np.uint8), iterations=1, borderType=cv2.MORPH_CROSS)
+        img_bin = cv2.morphologyEx(img_bin, cv2.MORPH_OPEN, np.ones((5,5), np.uint8), iterations=1, borderType=cv2.MORPH_CROSS)
+        img_bin = cv2.morphologyEx(img_bin, cv2.MORPH_CLOSE, np.ones((5,5), np.uint8), iterations=1, borderType=cv2.MORPH_CROSS)
+        img_bin = cv2.morphologyEx(img_bin, cv2.MORPH_CLOSE, np.ones((5,5), np.uint8), iterations=1, borderType=cv2.MORPH_CROSS)
+        if plot: cv2.imshow("nach morph"+str(i), img_bin) 
+        if i == var: cv2.imwrite(path + "awbsp/morph" + ".png", img_bin)
 
-        # morphologische filter
-        #imgs_bin[i] = cv2.morphologyEx(imgs_bin[i], cv2.MORPH_OPEN, np.ones((5,5),np.uint8), iterations=1, borderType=cv2.MORPH_CROSS)
-        #imgs_bin[i] = cv2.morphologyEx(imgs_bin[i], cv2.MORPH_CLOSE, np.ones((5,5),np.uint8), iterations=2, borderType=cv2.MORPH_RECT)
-        #cv2.imshow("bincage", imgs_bin[0])
+        ## individuelle ROI finden
+        contours, hierarchy = cv2.findContours(cv2.bitwise_not(img_bin), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        hierarchy = hierarchy[0] # unnötige listenstruktur loswerden
+        for (cnt, hie) in zip(contours, hierarchy):      
+            if hie[2] >= 0 and hie[3] < 0: # contour has child(s) but no parent
+                x,y,w,h = cv2.boundingRect(cnt)
+                mask = img_bin.copy() #np.zeros((h,w)) #! wert wird auch später immer auf 0 gesetzt
+                mask[:,:] = 0 # maske leeren 
+                cv2.fillPoly(mask, [cnt], 255)
+                img_bin_roi = cv2.bitwise_and(img_bin[y:y+h, x:x+w], mask[y:y+h, x:x+w]) # remove any other objects in roi  
+                img_lab_roi = img_lab[y:y+h, x:x+w] # für pixelzugriff mit schwerpunktkordinaten nötig
+                if plot: cv2.imshow('mask'+str(i), mask)   
+                if i == var:        
+                    cv2.imwrite(path + "awbsp/bin-roi" + ".png", img_bin_roi)
+                    cv2.imwrite(path + "awbsp/mask_cnt" + ".png", mask)
+                    cv2.imwrite(path + "awbsp/lab-roi" + ".png", img_lab_roi)
+            else:
+                continue
 
-        #? konturen oder andere methode um andere objekte auszuschließen
-        #? identifikation des gitters (z.B. zweistufige hirarchie)
-        
-    
-        #? ROI
-        # debug override
-        #imgs_roi = imgs 
-                  
-    ## schwerpunkte der sticker finden  (blob detector, hu-momente, ... )
-    #! größe des blob detectors vlt relativ zur bounding box
-    #? init parameter relativ zu ROI
-    # detektieren und nach korrekter keypoint-anzahl prüfen
-    keypoints, img_pts = detect_blobs(imgs_bin, 1)
-    cv2.imshow('binblob', img_pts[0])
- 
-    ## schwerpunkt-farben aus hue-kanal mitteln und durch "differenzverfahren" zwischen den farben zuordnen -> zahlenwert als farbe entsprechend enums.py
+        ## schwerpunkte der sticker finden (blob detector)
+        keypoints, img_pts = detect_blobs(img_bin_roi)
+        if plot: cv2.imshow('keypoints'+str(i), img_pts)
+        if i == var: cv2.imwrite(path + "awbsp/keypoints" + ".png", img_pts)
 
-    # zugriff auf keypoint koordinaten: keypoints[i][0..8].pt[0|1] # 1=row 0=col
-    # farbwerte aus originalbild in array speichern. farbwert: imgs_hue[i][row,column]
-    # zusammen: color_arr[i][r] = imgs_hue[i][keypoints[i][r].pt[1], keypoints[i][r].pt[0]]    i:facecolors, r:stickercount
-    
-    #- farbwert des stickerzentrums in array speichern
-    color_arr = np.zeros(shape=(6,9,5), dtype = 'int') #! variablentyp overflow bei uint8 
-    for i in range(6):
-        for r in range(9):
-            pt = keypoints[i][r].pt
-            x = int(pt[0])
-            y = int(pt[1])
-            color_arr.itemset((i,r,0), x) # x-Pos
-            color_arr.itemset((i,r,1), y) # y-Pos
-            color_arr.itemset((i,r,2), int(imgs_hsv.item(i,y,x,0))) # hue 
-            color_arr.itemset((i,r,3), int(imgs_hsv.item(i,y,x,1))) # saturation
-            color_arr.itemset((i,r,4), int(imgs_hsv.item(i,y,x,2))) # value
-
-    # color_arr nach reihen-koordinaten sortieren    
-    for i in range(6):   
-        color_arr[i].sort(axis=0)
-
-    # reihen intern nach spalten-koordinaten sortieren    
-    for i in range(6):     
-        for c in range(3):  
-            color_arr[i,c*3:c*3+3] = np.array(sorted(color_arr[i,c*3:c*3+3],key=lambda x: x[1] ) )
-            
-    
-    #! rotation der würfelseiten?
-    
-    #- danach neue farbwerte zuweisen (0..5 anstatt 0..255)
-    value = np.zeros(256, dtype='uint8')
-    for i in range(6):
-        for r in range(9):
+        ## allgemeines daten-array bereitstellen (koordinaten,farbdaten) 
+        img_probe = cv2.medianBlur(img_lab_roi, 3)
+        if len(keypoints) == 9:
+            for r in range(9):
+                pt = keypoints[r].pt
+                x = int(pt[0])
+                y = int(pt[1])
+                data_arr[i][r][0] = x # x-Pos
+                data_arr[i][r][1] = y # y-Pos
+                data_arr[i][r][2:] = img_probe[y][x] # L a b
+        else:
             pass
 
+        ## Blob-schwerpunkte nach Bildkoordinaten sortieren
+        data_arr[i] = sort_data(np.copy(data_arr[i]))
 
-    ## gescannte würfelseiten in validen CubeDefString umwandeln
-    #? rotation wichtig
+        ## center farben zwischenspeichern
+        centers[i] = data_arr[i][4][2:]
+    # i-Schleife vorbei
 
+    ## sticker- nach center-farben zuordnen und wertebereich ändern (U..B anstatt 0..5))
+    CubeDefStr = ""
+    for i in range(6):
+        for r in range(9):
+            value = data_arr[i][r][2:] # current sticker color info
+            idx, color = find_nearest(centers, value)
+            CubeDefStr += get_chars(idx)
 
-    ### deinit
+    ### deinit & return
     cv2.waitKey(0)
     cv2.destroyAllWindows()
-
-
-    ### debug override
-    retval = 0 
-    CubeDefStr = "override. finished" 
-
-
+    retval = 0  # platzhalter
     return retval, CubeDefStr
 
 if __name__ == "__main__":
     print "manual cube scan started."
     retval, cube = scan_cube()
-    print "scan result: %s" %(cube)
+    print "scan result: %s (%ss)" %(cube, len(cube))

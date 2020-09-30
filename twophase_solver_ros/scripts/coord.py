@@ -14,6 +14,13 @@ from enums import Edge as Ed
 SOLVED = 0  # 0 is index of solved state (except for u_edges coordinate)
 u_edges_plus_d_edges_to_ud_edges = None  # global variable
 
+# ##### includes for ros support
+
+import rospkg
+rospack = rospkg.RosPack()
+fpath = rospack.get_path('twophase_solver_ros') + '/tables/'
+
+# #####
 
 class CoordCube:
     """Represent a cube on the coordinate level.
@@ -145,7 +152,7 @@ class CoordCube:
 
 def create_phase2_edgemerge_table():
     """phase2_edgemerge retrieves the initial phase 2 ud_edges coordinate from the u_edges and d_edges coordinates."""
-    fname = "phase2_edgemerge"
+    fname = fpath + "phase2_edgemerge"
     global u_edges_plus_d_edges_to_ud_edges
     c_u = cb.CubieCube()
     c_d = cb.CubieCube()
